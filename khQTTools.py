@@ -16,16 +16,47 @@ print(f"{'='*60}\n")
 def is_subprocess():
     """检查是否在子进程中"""
     import multiprocessing
+    import os
+    
+    # 方法1: 检查multiprocessing的进程名称
     try:
         current_process = multiprocessing.current_process()
-        return current_process.name != 'MainProcess'
+        # 如果进程名不是MainProcess，或者进程名包含'SpawnPoolWorker'等子进程标识，则为子进程
+        if (hasattr(current_process, 'name') and 
+            current_process.name != 'MainProcess' and 
+            not current_process.name.startswith('Main')):
+            return True
     except:
-        return False
+        pass
+    
+    # 方法2: 检查是否存在_parent_pid（父进程ID）属性
+    try:
+        # 在子进程中，通常会有父进程ID信息
+        current_process = multiprocessing.current_process()
+        if hasattr(current_process, '_parent_pid') and current_process._parent_pid is not None:
+            return True
+    except:
+        pass
+        
+    # 方法3: 在Windows上，检查是否通过freeze_support启动
+    try:
+        # 如果是通过multiprocessing.spawn启动的子进程，某些标识会不同
+        if multiprocessing.current_process()._identity:
+            # 子进程通常会有非空的_identity元组
+            if len(multiprocessing.current_process()._identity) > 0:
+                return True
+    except:
+        pass
+        
+    return False
 
 # 只在子进程中设置环境变量
 if is_subprocess():
     os.environ['QT_QPA_PLATFORM'] = 'offscreen'
     os.environ['QT_LOGGING_RULES'] = 'qt.*=false'
+    # 额外设置防止Qt相关库冲突
+    os.environ['QT_PLUGIN_PATH'] = ''
+    os.environ['QML2_IMPORT_PATH'] = ''
 
 import csv
 import time
@@ -94,10 +125,13 @@ def set_data_provider(provider_type='xtquant', **kwargs):
 
 # 延迟导入Qt相关模块，避免在子进程中意外启动Qt应用
 try:
-    if not is_subprocess():
-        # 在主进程中正常导入Qt模块
-        from PyQt5.QtCore import QThread, pyqtSignal
-    else:
+    # 在子进程中设置环境变量以避免Qt冲突
+    if is_subprocess():
+        os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        os.environ['QT_PLUGIN_PATH'] = ''
+        os.environ['QML2_IMPORT_PATH'] = ''
+        os.environ['QT_LOGGING_RULES'] = 'qt.qpa.plugin=false;qt.qpa.plugin.missing=false'
+        
         # 在子进程中创建空的占位符类
         class QThread:
             def __init__(self):
@@ -109,6 +143,9 @@ try:
         
         def pyqtSignal(*args, **kwargs):
             return lambda: None
+    else:
+        # 在主进程中正常导入Qt模块
+        from PyQt5.QtCore import QThread, pyqtSignal
 except ImportError:
     # 如果导入失败，创建空的占位符类
     class QThread:
@@ -842,7 +879,7 @@ def download_and_store_data(local_data_path, stock_files, field_list, period_typ
                         stock_list=[stock],
                         period=period_type,
                         start_time=start_date,
-                        end_time=end_time,
+                        end_time=end_date,
                         count=-1,
                         dividend_type=dividend_type,  # 添加复权参数
                         fill_data=True
@@ -2055,6 +2092,10 @@ def supplement_history_data(stock_files, field_list, period_type, start_date, en
     # 在函数开始时设置环境变量，防止意外启动Qt应用（仅在子进程中）
     if is_subprocess():
         os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+        os.environ['QT_PLUGIN_PATH'] = ''
+        os.environ['QML2_IMPORT_PATH'] = ''
+        # 额外确保不加载Qt图形界面相关组件
+        os.environ['QT_LOGGING_RULES'] = 'qt.qpa.plugin=false;qt.qpa.plugin.missing=false'
     
     try:
         # 获取所有股票代码

@@ -27,6 +27,13 @@ def supplement_data_worker(params, progress_queue, result_queue, stop_event):
         import multiprocessing
         multiprocessing.current_process().name = 'SchedulerSupplementWorker'
     
+    # 在子进程中设置环境变量以避免Qt冲突
+    import os
+    os.environ['QT_QPA_PLATFORM'] = 'offscreen'
+    os.environ['QT_PLUGIN_PATH'] = ''
+    os.environ['QML2_IMPORT_PATH'] = ''
+    os.environ['QT_LOGGING_RULES'] = 'qt.qpa.plugin=false;qt.qpa.plugin.missing=false'
+    
     try:
         # 在子进程中导入需要的模块
         import sys
