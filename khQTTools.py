@@ -692,7 +692,7 @@ def process_row(row, stock_codes, stock_names):
         stock_code = row[0].strip()
         stock_name = row[1].strip()
         
-        logging.info(f"处理股票: {stock_code} - {stock_name}")
+        # logging.info(f"处理股票: {stock_code} - {stock_name}")
 
         # 检查股票代码格式 - 简化筛选，只要有交易所后缀就接受
         if '.' in stock_code:  # 已经包含后缀
@@ -700,7 +700,7 @@ def process_row(row, stock_codes, stock_names):
             if stock_code.endswith(('.SH', '.SZ', '.BJ')):  # 支持上海、深圳、北交所
                 stock_codes.append(stock_code)
                 stock_names.append(stock_name)
-                logging.info(f"添加证券: {stock_code} - {stock_name}")
+                # logging.info(f"添加证券: {stock_code} - {stock_name}")
             else:
                 logging.info(f"跳过证券（交易所代码不支持）: {stock_code}")
         else:
@@ -817,6 +817,7 @@ def download_and_store_data(local_data_path, stock_files, field_list, period_typ
     - 如果保存文件失败，会记录错误信息。
     - 如果中断检查函数返回True，会抛出InterruptedError异常。
     """
+    print("****************download_and_store_data********************")
     try:
         # 获取所有股票代码
         stocks = []
@@ -2098,6 +2099,7 @@ def supplement_history_data(stock_files, field_list, period_type, start_date, en
         os.environ['QT_LOGGING_RULES'] = 'qt.qpa.plugin=false;qt.qpa.plugin.missing=false'
     
     try:
+        logging.info("supplement_history_data")
         # 获取所有股票代码
         stocks = []
         for stock_file in stock_files:
@@ -2117,46 +2119,52 @@ def supplement_history_data(stock_files, field_list, period_type, start_date, en
             return
 
         total_stocks = len(stocks)
-        for index, stock in enumerate(stocks, 1):
-            try:
-                # 检查是否需要中断
-                if check_interrupt and check_interrupt():
-                    logging.info("补充数据过程被中断")
-                    raise InterruptedError("补充数据过程被用户中断")
-                    
-                if log_callback:
-                    log_callback(f"正在补充 {stock} 的数据 ({index}/{total_stocks})")
+        logging.info(f"总股票数: {total_stocks}")
+        # for index, stock in enumerate(stocks, 1):
+        try:
+            # 检查是否需要中断
+            if check_interrupt and check_interrupt():
+                logging.info("补充数据过程被中断")
+                raise InterruptedError("补充数据过程被用户中断")
+                
+            # if log_callback:
+            #     log_callback(f"正在补充 {stock} 的数据 ({index}/{total_stocks})")
 
-                # 检查是否需要中断
-                if check_interrupt and check_interrupt():
-                    logging.info("补充数据过程被中断")
-                    raise InterruptedError("补充数据过程被用户中断")
+            # 检查是否需要中断
+            # if check_interrupt and check_interrupt():
+            #     logging.info("补充数据过程被中断")
+            #     raise InterruptedError("补充数据过程被用户中断")
 
-                # 使用数据提供者进行数据补充
-                provider = get_data_provider()
-                provider.download_history_data(
-                    stock_code=stock,
-                    period=period_type,
-                    start_time=start_date,
-                    end_time=end_date
-                )
+            # 使用数据提供者进行数据补充
+            # logging.info(f"正在补充download_history_data {stock} 的数据 ({index}/{total_stocks})")
+            provider = get_data_provider()
+            provider.download_history_data(
+                stock_code=stocks,
+                period=period_type,
+                start_time=start_date,
+                end_time=end_date
+            )
 
-                # 检查是否需要中断
-                if check_interrupt and check_interrupt():
-                    logging.info("补充数据过程被中断")
-                    raise InterruptedError("补充数据过程被用户中断")
+            # 检查是否需要中断
+            if check_interrupt and check_interrupt():
+                logging.info("补充数据过程被中断")
+                raise InterruptedError("补充数据过程被用户中断")
 
 
-                # 获取数据（带复权参数）
-                data = provider.get_market_data(
-                    field_list=field_list,
-                    stock_list=[stock],
-                    period=period_type,
-                    start_time=start_date,
-                    end_time=end_date,
-                    dividend_type=dividend_type,
-                    fill_data=True
-                )
+            # 获取数据（带复权参数）
+            # logging.info(f"开始get_market_data {stock} 的数据 ({index}/{total_stocks})")
+            data = provider.get_market_data(
+                field_list=field_list,
+                stock_list=stocks,
+                period=period_type,
+                start_time=start_date,
+                end_time=end_date,
+                dividend_type=dividend_type,
+                fill_data=True
+            )
+
+            # logging.info(f"完成get_market_data {stock} 的数据 ({index}/{total_stocks})")
+            for index, stock in enumerate(stocks, 1):
 
                 # 添加更详细的数据信息
                 if stock in data and data[stock] is not None:
@@ -2199,19 +2207,19 @@ def supplement_history_data(stock_files, field_list, period_type, start_date, en
                     progress = int((index / total_stocks) * 100)
                     progress_callback(progress)
 
-                # 检查是否需要中断
-                if check_interrupt and check_interrupt():
-                    logging.info("补充数据过程被中断")
-                    raise InterruptedError("补充数据过程被用户中断")
+            # 检查是否需要中断
+            if check_interrupt and check_interrupt():
+                logging.info("补充数据过程被中断")
+                raise InterruptedError("补充数据过程被用户中断")
 
-            except InterruptedError:
-                logging.info(f"补充 {stock} 数据时被中断")
-                raise
-            except Exception as e:
-                error_msg = f"补充 {stock} 数据时出错: {str(e)}"
-                logging.error(error_msg)
-                if log_callback:
-                    log_callback(error_msg)
+        except InterruptedError:
+            logging.info(f"补充 {stock} 数据时被中断")
+            raise
+        except Exception as e:
+            error_msg = f"补充 {stock} 数据时出错: {str(e)}"
+            logging.error(error_msg)
+            if log_callback:
+                log_callback(error_msg)
 
     except InterruptedError:
         logging.info("补充数据过程被用户中断")
@@ -2283,7 +2291,7 @@ def khHistory(symbol_list, fields, bar_count, fre_step, current_time=None, skip_
 
     # 获取数据提供者实例
     provider = get_data_provider()
-    
+    logging.info("khHistory")
     # 参数验证
     if not symbol_list:
         raise ValueError("symbol_list不能为空")
@@ -2388,18 +2396,18 @@ def khHistory(symbol_list, fields, bar_count, fre_step, current_time=None, skip_
                 start_date = start_dt.strftime('%Y%m%d')
             
             # 使用数据提供者下载数据到指定时间
-            download_count = 0
-            for stock_code in stock_codes:
-                try:
-                    provider.download_history_data(
-                        stock_code=stock_code,
-                        period=period,
-                        start_time=start_date,
-                        end_time=current_date_str
-                    )
-                    download_count += 1
-                except Exception as e:
-                    print(f"下载 {stock_code} 数据失败: {str(e)}")
+            # download_count = 0
+            # for stock_code in stock_codes:
+            try:
+                provider.download_history_data(
+                    stock_code=stock_codes,
+                    period=period,
+                    start_time=start_date,
+                    end_time=current_date_str
+                )
+                download_count += 1
+            except Exception as e:
+                print(f"下载 {stock_code} 数据失败: {str(e)}")
 
             print(f"成功下载 {download_count}/{len(stock_codes)} 只股票的数据")
         

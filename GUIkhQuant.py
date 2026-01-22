@@ -5097,7 +5097,7 @@ def main():
             sys.excepthook = exception_hook
             
             # 延迟执行更新检查
-            QTimer.singleShot(2000, window.delayed_update_check)
+            # QTimer.singleShot(2000, window.delayed_update_check)
             
             # 运行事件循环
             return app.exec_()
